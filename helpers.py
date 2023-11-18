@@ -35,7 +35,6 @@ def compute_accuracy(eval_preds: EvalPrediction):
             np.float32).mean().item()
     }
 
-
 # This function preprocesses a question answering dataset, tokenizing the question and context text
 # and finding the right offsets for the answer spans in the tokenized context (to use as labels).
 # Adapted from https://github.com/huggingface/transformers/blob/master/examples/pytorch/question-answering/run_qa.py
@@ -56,6 +55,8 @@ def prepare_train_dataset_qa(examples, tokenizer, max_seq_length=None):
         padding="max_length"
     )
 
+    print("printing answers")
+    print(examples["answers"])
     # Since one example might give us several features if it has a long context,
     # we need a map from a feature to its corresponding example.
     sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
@@ -116,6 +117,8 @@ def prepare_train_dataset_qa(examples, tokenizer, max_seq_length=None):
 
 
 def prepare_validation_dataset_qa(examples, tokenizer):
+    print("Examples")
+    print(examples)
     questions = [q.lstrip() for q in examples["question"]]
     max_seq_length = tokenizer.model_max_length
     tokenized_examples = tokenizer(
@@ -266,7 +269,7 @@ class QuestionAnsweringTrainer(Trainer):
         eval_dataset = self.eval_dataset if eval_dataset is None else eval_dataset
         eval_dataloader = self.get_eval_dataloader(eval_dataset)
         eval_examples = self.eval_examples if eval_examples is None else eval_examples
-
+        # print(eval_examples)
         # Temporarily disable metric computation, we will do it in the loop here.
         compute_metrics = self.compute_metrics
         self.compute_metrics = None
@@ -294,7 +297,18 @@ class QuestionAnsweringTrainer(Trainer):
             references = [{"id": ex["id"], "answers": ex['answers']}
                           for ex in eval_examples]
 
+            ref_map = dict()
+            for entry in references:
+                print(entry)
+                ref_map[entry.get("id")] = entry.get("answers").get("text")
+            
+            for k, v in eval_preds.items():
+                if v not in ref_map.get(k):
+                    print("{}, {}".format(v, ref_map.get(k)))
+
             # compute the metrics according to the predictions and references
+            print(formatted_predictions)
+            print(references)
             metrics = self.compute_metrics(
                 EvalPrediction(predictions=formatted_predictions,
                                label_ids=references)

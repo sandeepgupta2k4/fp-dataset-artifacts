@@ -55,9 +55,10 @@ def main():
     # example as follows:
     # {"premise": "Two women are embracing.", "hypothesis": "The sisters are hugging.", "label": 1}
     if args.dataset.endswith('.json') or args.dataset.endswith('.jsonl'):
+        formated_file = format_json_data(args.dataset)
         dataset_id = None
         # Load from local json/jsonl file
-        dataset = datasets.load_dataset('json', data_files=args.dataset)
+        dataset = datasets.load_dataset('json', data_files=formated_file)
         # By default, the "json" dataset loader places all examples in the train split,
         # so if we want to use a jsonl file for evaluation we need to get the "train" split
         # from the loaded dataset
@@ -113,6 +114,7 @@ def main():
             remove_columns=train_dataset.column_names
         )
     if training_args.do_eval:
+        # dataset.get("train").to_json("my_data.json")
         eval_dataset = dataset[eval_split]
         if args.max_eval_samples:
             eval_dataset = eval_dataset.select(range(args.max_eval_samples))
@@ -202,6 +204,37 @@ def main():
                     example_with_prediction['predicted_label'] = int(eval_predictions.predictions[i].argmax())
                     f.write(json.dumps(example_with_prediction))
                     f.write('\n')
+
+def format_json_data(file_name):
+    with open(file_name) as f:
+        result_file = file_name + "-updated.json"
+        with open(result_file, "w") as fw:
+            d = json.load(f)
+            data = d.get("data")
+            for entry in data:
+                title = entry.get("title")
+                for paragraph in entry.get("paragraphs"):
+                    context = paragraph.get("context")
+                    for q in paragraph.get("qas"):
+                        result = dict()
+                        result["id"] = q.get("id")
+                        result["title"] = title
+                        result["context"] = context
+                        result["question"] = q.get("question")
+                        ans_dict = dict()
+                        text = []
+                        answer_start = []
+                        for ans in q.get("answers"):
+                            text.append(ans.get("text"))
+                            answer_start.append(ans.get("answer_start"))
+                        ans_dict["text"] = text
+                        ans_dict["answer_start"] = answer_start
+                        result["answers"] = ans_dict
+                        
+                        json_object = json.dumps(result)
+                        fw.write(json_object + "\n")
+        return result_file
+
 
 
 if __name__ == "__main__":
